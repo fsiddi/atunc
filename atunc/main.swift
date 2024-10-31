@@ -1,11 +1,145 @@
-//
-//  main.swift
-//  atunc
-//
-//  Created by Francesco Siddi on 31/10/2024.
-//
-
 import Foundation
+import AVFoundation
+import CoreAudio
 
-print("Hello, World!")
+struct AudioDevice: Codable {
+    let id: AudioDeviceID
+    let name: String
+}
 
+class AudioRecorder {
+    private var audioEngine: AVAudioEngine?
+    private var outputFile: AVAudioFile?
+    
+    // Function to list all audio devices in JSON format
+    static func listAudioDevices() {
+        var deviceCount: UInt32 = 0
+        var propertySize = UInt32(MemoryLayout<AudioDeviceID>.size)
+        
+        // Query for number of audio devices
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &propertySize
+        )
+        
+        deviceCount = propertySize / UInt32(MemoryLayout<AudioDeviceID>.size)
+        
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: Int(deviceCount))
+        AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &propertySize,
+            &deviceIDs
+        )
+        
+        var devices = [AudioDevice]()
+        
+        // Iterate through each device
+        for deviceID in deviceIDs {
+            var name: CFString = "" as CFString
+            propertySize = UInt32(MemoryLayout<CFString>.size)
+            
+            var deviceNameProperty = AudioObjectPropertyAddress(
+                mSelector: kAudioObjectPropertyName,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            
+            AudioObjectGetPropertyData(
+                deviceID,
+                &deviceNameProperty,
+                0,
+                nil,
+                &propertySize,
+                &name
+            )
+            
+            let device = AudioDevice(id: deviceID, name: name as String)
+            devices.append(device)
+        }
+        
+        // Print the devices in JSON format
+        if let jsonData = try? JSONEncoder().encode(devices),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            print(jsonString)
+        }
+    }
+    
+    // Function to start recording using the specified audio device and output path
+    func startRecording(deviceID: AudioDeviceID, outputPath: String) {
+        audioEngine = AVAudioEngine()
+        
+        guard let inputNode = audioEngine?.inputNode else {
+            print("Unable to access input node.")
+            return
+        }
+        
+        let format = inputNode.outputFormat(forBus: 0)
+        
+        // Set up the output file for recording
+        do {
+            let audioURL = URL(fileURLWithPath: outputPath)
+            outputFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
+        } catch {
+            print("Failed to create audio file: \(error)")
+            return
+        }
+        
+        // Install tap on input node to capture audio
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { (buffer, time) in
+            do {
+                try self.outputFile?.write(from: buffer)
+            } catch {
+                print("Failed to write audio data: \(error)")
+            }
+        }
+        
+        // Start audio engine
+        do {
+            try audioEngine?.start()
+            print("Recording started... Press Enter to stop.")
+            _ = readLine() // Wait for Enter key to stop recording
+            stopRecording()
+        } catch {
+            print("Failed to start audio engine: \(error)")
+        }
+    }
+    
+    func stopRecording() {
+        audioEngine?.stop()
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        print("Recording stopped.")
+    }
+}
+
+// Main logic
+let arguments = CommandLine.arguments
+let recorder = AudioRecorder()
+
+if arguments.contains("--list-devices") {
+    AudioRecorder.listAudioDevices()
+} else if let deviceIndex = arguments.firstIndex(of: "--device-id"),
+          let outputPathIndex = arguments.firstIndex(of: "--output-path"),
+          deviceIndex + 1 < arguments.count,
+          outputPathIndex + 1 < arguments.count {
+    
+    let deviceID = AudioDeviceID(UInt32(arguments[deviceIndex + 1]) ?? 0)
+    let outputPath = arguments[outputPathIndex + 1]
+    recorder.startRecording(deviceID: deviceID, outputPath: outputPath)
+} else {
+    print("Usage:")
+    print("  --list-devices                  List all audio devices in JSON format")
+    print("  --device-id <id>                Specify the device ID to use for recording")
+    print("  --output-path <path>            Specify the output path for the WAV file")
+}
