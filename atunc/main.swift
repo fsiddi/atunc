@@ -12,17 +12,18 @@ class AudioRecorder {
     private var outputFile: AVAudioFile?
     
     // Function to list all audio devices in JSON format
+    // Function to list only audio input devices in JSON format
     static func listAudioDevices() {
         var deviceCount: UInt32 = 0
         var propertySize = UInt32(MemoryLayout<AudioDeviceID>.size)
-        
-        // Query for number of audio devices
+
+        // Query for the number of audio devices
         var propertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDevices,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        
+
         AudioObjectGetPropertyDataSize(
             AudioObjectID(kAudioObjectSystemObject),
             &propertyAddress,
@@ -30,9 +31,8 @@ class AudioRecorder {
             nil,
             &propertySize
         )
-        
+
         deviceCount = propertySize / UInt32(MemoryLayout<AudioDeviceID>.size)
-        
         var deviceIDs = [AudioDeviceID](repeating: 0, count: Int(deviceCount))
         AudioObjectGetPropertyData(
             AudioObjectID(kAudioObjectSystemObject),
@@ -42,40 +42,59 @@ class AudioRecorder {
             &propertySize,
             &deviceIDs
         )
-        
+
         var devices = [AudioDevice]()
-        
+
         // Iterate through each device
         for deviceID in deviceIDs {
-            var name: CFString = "" as CFString
-            propertySize = UInt32(MemoryLayout<CFString>.size)
-            
-            var deviceNameProperty = AudioObjectPropertyAddress(
-                mSelector: kAudioObjectPropertyName,
-                mScope: kAudioObjectPropertyScopeGlobal,
+
+            var inputStreamSize = UInt32(MemoryLayout<UInt32>.size)
+
+            // Check if the device has input streams (for recording capability)
+            var inputStreamsProperty = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyStreams,
+                mScope: kAudioObjectPropertyScopeInput,
                 mElement: kAudioObjectPropertyElementMain
             )
-            
-            AudioObjectGetPropertyData(
+
+            let status = AudioObjectGetPropertyDataSize(
                 deviceID,
-                &deviceNameProperty,
+                &inputStreamsProperty,
                 0,
                 nil,
-                &propertySize,
-                &name
+                &inputStreamSize
             )
-            
-            let device = AudioDevice(id: deviceID, name: name as String)
-            devices.append(device)
+
+            if status == noErr && inputStreamSize > 0 {
+                var name: CFString = "" as CFString
+                var deviceNameProperty = AudioObjectPropertyAddress(
+                    mSelector: kAudioObjectPropertyName,
+                    mScope: kAudioObjectPropertyScopeGlobal,
+                    mElement: kAudioObjectPropertyElementMain
+                )
+                propertySize = UInt32(MemoryLayout<CFString>.size)
+
+                AudioObjectGetPropertyData(
+                    deviceID,
+                    &deviceNameProperty,
+                    0,
+                    nil,
+                    &propertySize,
+                    &name
+                )
+
+                let device = AudioDevice(id: deviceID, name: name as String)
+                devices.append(device)
+            }
         }
-        
+
         // Print the devices in JSON format
         if let jsonData = try? JSONEncoder().encode(devices),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             print(jsonString)
         }
     }
-    
+
     // Function to start recording using the specified audio device and output path
     func startRecording(deviceID: AudioDeviceID, outputPath: String) {
         audioEngine = AVAudioEngine()
