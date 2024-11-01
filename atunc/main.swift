@@ -98,14 +98,37 @@ class AudioRecorder {
     // Function to start recording using the specified audio device and output path
     func startRecording(deviceID: AudioDeviceID, outputPath: String) {
         audioEngine = AVAudioEngine()
-        
+
+        // Set the input device to the specified deviceID
+        var inputDeviceID = deviceID
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let status = AudioObjectSetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            UInt32(MemoryLayout<AudioDeviceID>.size),
+            &inputDeviceID
+        )
+
+        if status != noErr {
+            print("Failed to set input device to specified device ID.")
+            return
+        }
+
+        // Proceed to set up the recording with the specified device as input
         guard let inputNode = audioEngine?.inputNode else {
             print("Unable to access input node.")
             return
         }
-        
+
         let format = inputNode.outputFormat(forBus: 0)
-        
+
         // Set up the output file for recording
         do {
             let audioURL = URL(fileURLWithPath: outputPath)
@@ -114,7 +137,7 @@ class AudioRecorder {
             print("Failed to create audio file: \(error)")
             return
         }
-        
+
         // Install tap on input node to capture audio
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { (buffer, time) in
             do {
@@ -123,7 +146,7 @@ class AudioRecorder {
                 print("Failed to write audio data: \(error)")
             }
         }
-        
+
         // Start audio engine
         do {
             try audioEngine?.start()
@@ -134,7 +157,7 @@ class AudioRecorder {
             print("Failed to start audio engine: \(error)")
         }
     }
-    
+
     func stopRecording() {
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
