@@ -121,25 +121,36 @@ class AudioRecorder {
             return
         }
 
-        // Proceed to set up the recording with the specified device as input
         guard let inputNode = audioEngine?.inputNode else {
             print("Unable to access input node.")
             return
         }
 
-        let format = inputNode.outputFormat(forBus: 0)
+
+        // Use hardware format sample rate for recording
+        let hwFormat = inputNode.outputFormat(forBus: 0)
+
+        // Set up the output file settings with 44.1 kHz
+        let outputSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: hwFormat.sampleRate,
+            AVNumberOfChannelsKey: hwFormat.channelCount,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsFloatKey: false
+        ]
 
         // Set up the output file for recording
         do {
             let audioURL = URL(fileURLWithPath: outputPath)
-            outputFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
+            outputFile = try AVAudioFile(forWriting: audioURL, settings: outputSettings)
         } catch {
             print("Failed to create audio file: \(error)")
             return
         }
 
-        // Install tap on input node to capture audio
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { (buffer, time) in
+        // Install tap on input node to capture audio with compatible format
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: hwFormat) { (buffer, time) in
             do {
                 try self.outputFile?.write(from: buffer)
             } catch {
