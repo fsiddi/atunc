@@ -66,15 +66,18 @@ class AudioRecorder {
             )
 
             if status == noErr && inputStreamSize > 0 {
-                var name: CFString = "" as CFString
+                // Allocate a CFString for the device name
+                var name: Unmanaged<CFString>?
+                propertySize = UInt32(MemoryLayout<CFString>.size)
+
                 var deviceNameProperty = AudioObjectPropertyAddress(
                     mSelector: kAudioObjectPropertyName,
                     mScope: kAudioObjectPropertyScopeGlobal,
                     mElement: kAudioObjectPropertyElementMain
                 )
-                propertySize = UInt32(MemoryLayout<CFString>.size)
 
-                AudioObjectGetPropertyData(
+                // Get the property data
+                let result = AudioObjectGetPropertyData(
                     deviceID,
                     &deviceNameProperty,
                     0,
@@ -83,8 +86,13 @@ class AudioRecorder {
                     &name
                 )
 
-                let device = AudioDevice(id: deviceID, name: name as String)
-                devices.append(device)
+                // Check for success
+                if result == noErr, let deviceName = name?.takeRetainedValue() {
+                    let device = AudioDevice(id: deviceID, name: deviceName as String)
+                    devices.append(device)
+                } else {
+                    print("Failed to get device name for device ID: \(deviceID), error: \(result)")
+                }
             }
         }
 
