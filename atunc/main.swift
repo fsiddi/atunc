@@ -14,7 +14,6 @@ class AudioRecorder {
     // A static reference to the current instance, for use in the signal handler
     static var sharedRecorder: AudioRecorder?
 
-    // Function to list all audio devices in JSON format
     // Function to list only audio input devices in JSON format
     static func listAudioDevices() {
         var deviceCount: UInt32 = 0
