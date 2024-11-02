@@ -10,7 +10,10 @@ struct AudioDevice: Codable {
 class AudioRecorder {
     private var audioEngine: AVAudioEngine?
     private var outputFile: AVAudioFile?
-    
+
+    // A static reference to the current instance, for use in the signal handler
+    static var sharedRecorder: AudioRecorder?
+
     // Function to list all audio devices in JSON format
     // Function to list only audio input devices in JSON format
     static func listAudioDevices() {
@@ -135,10 +138,10 @@ class AudioRecorder {
         }
 
 
-        // Use hardware format sample rate for recording
+        // Capture hardware default recording settings
         let hwFormat = inputNode.outputFormat(forBus: 0)
 
-        // Set up the output file settings with 44.1 kHz
+        // Set up the output file settings
         let outputSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: hwFormat.sampleRate,
@@ -169,19 +172,44 @@ class AudioRecorder {
         // Start audio engine
         do {
             try audioEngine?.start()
-            print("Recording started... Press Enter to stop.")
-            _ = readLine() // Wait for Enter key to stop recording
-            stopRecording()
+            print("Recording started... Press Ctrl+C to stop.")
+
+            // Set this instance as the shared recorder
+            AudioRecorder.sharedRecorder = self
+
+            // Set up signal handling for graceful shutdown
+            setSignalHandler()
+
+            // Keep the application running until interrupted
+            RunLoop.current.run()
         } catch {
             print("Failed to start audio engine: \(error)")
         }
     }
 
+    // Function to stop recording
     func stopRecording() {
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine = nil
         print("Recording stopped.")
     }
+
+    // Set up signal handler to catch termination signals
+    private func setSignalHandler() {
+        // Define the signal handler structure
+        var signalAction = sigaction()
+        signalAction.__sigaction_u.__sa_handler = signalHandler
+        sigaction(SIGINT, &signalAction, nil)   // Catch Ctrl+C
+        sigaction(SIGTERM, &signalAction, nil)  // Catch termination signals
+    }
+}
+
+// C-compatible signal handler function
+func signalHandler(signal: Int32) {
+    print("\nTermination signal received. Stopping recording.")
+    AudioRecorder.sharedRecorder?.stopRecording()
+    exit(signal)
 }
 
 // Main logic
