@@ -93,6 +93,7 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1610;
+				ORGANIZATIONNAME = Armadillica;
 				TargetAttributes = {
 					C6FC9B382CD3C7820079E191 = {
 						CreatedOnToolsVersion = 16.0;
@@ -254,9 +255,11 @@
 		C6FC9B412CD3C7820079E191 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = atunc/atunc.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = WNK7J849SE;
+				ENABLE_HARDENED_RUNTIME = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.armadillica.atunc;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -266,11 +269,17 @@
 		C6FC9B422CD3C7820079E191 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = atunc/atunc.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = WNK7J849SE;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = WNK7J849SE;
+				ENABLE_HARDENED_RUNTIME = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.armadillica.atunc;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
