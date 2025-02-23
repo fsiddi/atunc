@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2025 Atunc authors
+
 import Foundation
 import AVFoundation
 import CoreAudio
