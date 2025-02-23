@@ -191,6 +191,7 @@ class AudioRecorder {
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine = nil
+        outputFile = nil // This ensures the file is finalized and closed
         print("Recording stopped.")
     }
 
